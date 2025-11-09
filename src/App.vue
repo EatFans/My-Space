@@ -1,118 +1,111 @@
+<template>
+  <div class="container">
+    <canvas ref="canvas"></canvas>
+  </div>
+</template>
+
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, render } from 'vue';
-import * as Three from 'three';
+import { ref, onMounted, onUnmounted } from 'vue';
+import * as THREE from 'three';
 import blockTextureUrl from '/assets/textures/blocks/cobblestone.png';
 import gold_ore_textureUrl from '/assets/textures/blocks/gold_ore.png';
 
-const container = ref<HTMLDivElement | null>(null);
+const canvas = ref<HTMLCanvasElement | null>(null);
 
-let scene: Three.Scene;
-let camera: Three.PerspectiveCamera;
-let renderer: Three.WebGLRenderer;
-let cube: Three.Mesh;
-let cube2: Three.Mesh;
+let scene: THREE.Scene;
+let camera: THREE.PerspectiveCamera;
+let renderer: THREE.WebGLRenderer;
+let cube: THREE.Mesh;
+let cube2: THREE.Mesh;
 let animationId: number;
 
+function createCube(textureUrl: string, x: number) {
+  const geometry = new THREE.BoxGeometry();
+  const texture = new THREE.TextureLoader().load(textureUrl);
+  texture.magFilter = THREE.NearestFilter;
+  texture.minFilter = THREE.NearestFilter;
+  const material = new THREE.MeshBasicMaterial({ map: texture });
+  const cube = new THREE.Mesh(geometry, material);
+  cube.position.x = x;
+  return cube;
+}
+
+function resizeRenderer() {
+  if (!canvas.value) return;
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+
+  renderer.setSize(width, height);
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+}
+
 onMounted(() => {
-  if (!container.value)
-    return;
+  if (!canvas.value) return;
 
-  // 创建场景
-  scene = new Three.Scene();
-  scene.background = new Three.Color(0x4B0082);
-
-  // 创建相机
-  const width = container.value.clientWidth;
-  const height = container.value.clientHeight;
-  camera = new Three.PerspectiveCamera(75, width / height, 0.1, 1000);
-  camera.position.z = 5
-
-  // 创建渲染器
-  renderer = new Three.WebGLRenderer({
+  // 创建渲染器并绑定 canvas
+  renderer = new THREE.WebGLRenderer({
+    canvas: canvas.value,
     antialias: true
   });
-  renderer.setSize(width,height);
-  container.value.appendChild(renderer.domElement);
 
-  // 加载图片材质
-  const textureLoader = new Three.TextureLoader();
-  const texture = textureLoader.load(
-    blockTextureUrl,
-    () => console.log('加载成功'),
-    undefined,
-    () => console.error('加载失败')
-  );
-  texture.magFilter = Three.NearestFilter;  // 放大时保持像素
-  texture.minFilter = Three.NearestFilter;  // 缩小时保持像素
+  // 创建场景
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xffffff);
 
-  const texture2 = textureLoader.load(
-    gold_ore_textureUrl,
-  );
-  texture2.magFilter = Three.NearestFilter;  // 放大时保持像素
-  texture2.minFilter = Three.NearestFilter;  // 缩小时保持像素
+  // 创建相机
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.position.z = 5;
 
   // 创建立方体
-  // 创建几何体 geometry
-  const geometry = new Three.BoxGeometry();
-  const material = new Three.MeshBasicMaterial({
-    map: texture
-  });
-  cube = new Three.Mesh(geometry,material);
+  cube = createCube(blockTextureUrl, -1);
+  cube2 = createCube(gold_ore_textureUrl, 1);
+  scene.add(cube, cube2);
 
-  const geometry2 = new Three.BoxGeometry();
-  const material2 = new Three.MeshBasicMaterial({
-    map: texture2
-  });
-  cube2 = new Three.Mesh(geometry2,material2);
-  
-  // 将立方体添加到场景中
-  scene.add(cube);
-  scene.add(cube2);
+  // 设置初始大小
+  resizeRenderer();
 
-  cube.position.set(-1.5, 0, 0)  // 左移
-  cube2.position.set(1.5, 0, 0)  // 右移
+  // 监听窗口变化
+  window.addEventListener('resize', resizeRenderer);
 
+  // 动画循环
   const animate = () => {
     cube.rotation.x += 0.01;
     cube.rotation.y += 0.02;
+    cube2.rotation.x += 0.02;
+    cube2.rotation.y += 0.01;
 
-    cube2.rotation.x += 0.02
-    cube2.rotation.y += 0.01
-
-    animationId = requestAnimationFrame(animate);
     renderer.render(scene, camera);
-    
-  }
+    animationId = requestAnimationFrame(animate);
+  };
   animate();
-
 });
 
 onUnmounted(() => {
-  // 释放资源
   cancelAnimationFrame(animationId);
   renderer.dispose();
-}); 
-
-
+  window.removeEventListener('resize', resizeRenderer);
+});
 </script>
 
-<template>
-  <div ref="container" class="canvas-container"></div>
-</template>
+<style>
 
-<style scoped>
-.canvas-container {
-  width: 100vw;
-  height: 100vh;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-}
 html, body {
   margin: 0;
   padding: 0;
-  overflow: hidden;
-  height: 100%;
-  width: 100%;
 }
+
+.container {
+  height: 100vh;
+  width: 100vw;
+  overflow-x: hidden;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+
 </style>
